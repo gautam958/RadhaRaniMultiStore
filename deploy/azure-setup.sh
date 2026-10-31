@@ -4,6 +4,7 @@
 # Creates: resource group, Azure SQL (serverless, free offer), storage, Function App (Flex Consumption, .NET 10),
 # app settings, CORS for GitHub Pages, and an OIDC identity so GitHub Actions can deploy without passwords.
 # Safe to re-run: existing resources are reused. Secrets are generated here and never printed.
+# Options (env vars): SQL_SERVER=<existing server> SQL_RG=<its resource group> GOOGLE_CLIENT_ID=<client id>
 set -euo pipefail
 
 LOC="${LOC:-centralindia}"
@@ -21,22 +22,6 @@ step() { echo; echo "==> $*"; }
 step "Resource group $RG ($LOC)"
 az group create -n "$RG" -l "$LOC" -o none
 
-step "Azure SQL server $SQL"
-if ! az sql server show -g "$RG" -n "$SQL" -o none 2>/dev/null; then
-  SQLPW="Rr$(openssl rand -hex 14)#9a"
-  az sql server create -g "$RG" -n "$SQL" -l "$LOC" -u rradmin -p "$SQLPW" -o none
-  NEW_SQL_PASSWORD=1
-fi
-az sql server firewall-rule create -g "$RG" -s "$SQL" -n AllowAzureServices --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0 -o none
-
-step "Database $DB (serverless, free offer, auto-pause)"
-if ! az sql db show -g "$RG" -s "$SQL" -n "$DB" -o none 2>/dev/null; then
-  az sql db create -g "$RG" -s "$SQL" -n "$DB" \
-    --edition GeneralPurpose --compute-model Serverless --family Gen5 --capacity 2 \
-    --use-free-limit --free-limit-exhaustion-behavior AutoPause --backup-storage-redundancy Local -o none \
-  || { echo "!! Free-offer database could not be created (the free offer allows one per subscription)."; exit 1; }
-fi
-
 step "Storage account $ST"
 az storage account create -g "$RG" -n "$ST" -l "$LOC" --sku Standard_LRS --min-tls-version TLS1_2 --allow-blob-public-access false -o none
 
@@ -47,13 +32,53 @@ if ! az functionapp show -g "$RG" -n "$FUNC" -o none 2>/dev/null; then
 fi
 HOST=$(az functionapp show -g "$RG" -n "$FUNC" --query defaultHostName -o tsv)
 
+# Database: an existing SQL server can be reused (SQL_SERVER + SQL_RG), else a new one is created.
+SQL_RG="${SQL_RG:-$RG}"
+if [ -n "${SQL_SERVER:-}" ]; then SQL="$SQL_SERVER"; fi
+
+if ! az sql server show -g "$SQL_RG" -n "$SQL" -o none 2>/dev/null; then
+  step "Azure SQL server $SQL"
+  az sql server create -g "$SQL_RG" -n "$SQL" -l "$LOC" -u rradmin -p "Rr$(openssl rand -hex 14)#9a" \
+    --external-admin-principal-type User --external-admin-name "$(az account show --query user.name -o tsv)" \
+    --external-admin-sid "$(az ad signed-in-user show --query id -o tsv)" -o none
+fi
+az sql server firewall-rule create -g "$SQL_RG" -s "$SQL" -n AllowAllWindowsAzureIps --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0 -o none 2>/dev/null || true
+
+step "Database $DB on $SQL (serverless, free offer, auto-pause)"
+if ! az sql db show -g "$SQL_RG" -s "$SQL" -n "$DB" -o none 2>/dev/null; then
+  az sql db create -g "$SQL_RG" -s "$SQL" -n "$DB" \
+    --edition GeneralPurpose --compute-model Serverless --family Gen5 --capacity 2 \
+    --use-free-limit --free-limit-exhaustion-behavior AutoPause -o none \
+  || { echo "!! Free-offer database could not be created."; exit 1; }
+fi
+
+# App login that exists ONLY inside this database (contained user) — the server admin password is never touched.
+APP_USER="radharani_app"
+EXISTING_CONN=$(az functionapp config appsettings list -g "$RG" -n "$FUNC" --query "[?name=='ConnectionStrings__Db'].value" -o tsv 2>/dev/null || true)
+if [ -z "$EXISTING_CONN" ]; then
+  step "Database login $APP_USER (via your Entra admin sign-in)"
+  APP_PW="Rr$(openssl rand -hex 16)#7b"
+  MYIP=$(curl -s https://api.ipify.org)
+  az sql server firewall-rule create -g "$SQL_RG" -s "$SQL" -n CloudShellSetupTemp --start-ip-address "$MYIP" --end-ip-address "$MYIP" -o none
+  for i in 1 2 3 4 5; do
+    sqlcmd -S "tcp:$SQL.database.windows.net,1433" -d "$DB" --authentication-method ActiveDirectoryDefault -b -Q "
+      IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = '$APP_USER')
+        CREATE USER [$APP_USER] WITH PASSWORD = '$APP_PW';
+      ELSE ALTER USER [$APP_USER] WITH PASSWORD = '$APP_PW';
+      ALTER ROLE db_owner ADD MEMBER [$APP_USER];" && break
+    echo "   database waking up, retrying in 20s…"; sleep 20
+  done
+  az sql server firewall-rule delete -g "$SQL_RG" -s "$SQL" -n CloudShellSetupTemp -o none
+  NEW_CONN="Server=tcp:$SQL.database.windows.net,1433;Database=$DB;User ID=$APP_USER;Password=$APP_PW;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
+fi
+
+
 step "App settings"
 SETTINGS=( "Auth__OwnerEmails=$OWNER_EMAIL" "Auth__DevLogin=false" "Auth__SessionDays=7" "Shop__CashierMaxBillDiscountPercent=5" )
 EXISTING=$(az functionapp config appsettings list -g "$RG" -n "$FUNC" --query "[?name=='Auth__TokenSecret'].name" -o tsv)
 [ -z "$EXISTING" ] && SETTINGS+=( "Auth__TokenSecret=$(openssl rand -base64 48 | tr -d '\n')" )
-if [ "${NEW_SQL_PASSWORD:-0}" = 1 ]; then
-  SETTINGS+=( "ConnectionStrings__Db=Server=tcp:$SQL.database.windows.net,1433;Database=$DB;User ID=rradmin;Password=$SQLPW;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;" )
-fi
+[ -n "${NEW_CONN:-}" ] && SETTINGS+=( "ConnectionStrings__Db=$NEW_CONN" )
+[ -n "${GOOGLE_CLIENT_ID:-}" ] && SETTINGS+=( "Auth__GoogleClientId=$GOOGLE_CLIENT_ID" )
 az functionapp config appsettings set -g "$RG" -n "$FUNC" --settings "${SETTINGS[@]}" -o none
 
 step "CORS for $PAGES_ORIGIN"
