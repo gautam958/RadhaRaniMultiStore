@@ -75,6 +75,11 @@ EXISTING_CONN=$(az functionapp config appsettings list -g "$RG" -n "$FUNC" --que
 if [ -z "$EXISTING_CONN" ]; then
   step "Database login $APP_USER (via your Entra admin sign-in)"
   APP_PW="Rr$(openssl rand -hex 16)#7b"
+  if ! command -v sqlcmd >/dev/null; then   # Cloud Shell sometimes lacks it — fetch Microsoft's go-sqlcmd
+    mkdir -p "$HOME/bin" && curl -sL https://github.com/microsoft/go-sqlcmd/releases/latest/download/sqlcmd-linux-amd64.tar.bz2 \
+      | tar -xj -C "$HOME/bin" sqlcmd && export PATH="$HOME/bin:$PATH"
+  fi
+  command -v sqlcmd >/dev/null || { echo "!! sqlcmd not available"; exit 1; }
   MYIP=$(curl -s https://api.ipify.org)
   az sql server firewall-rule create -g "$SQL_RG" -s "$SQL" -n CloudShellSetupTemp --start-ip-address "$MYIP" --end-ip-address "$MYIP" -o none
   for i in 1 2 3 4 5; do
