@@ -60,12 +60,13 @@ public class TokenService(IOptions<AuthOptions> opts)
     {
         if (string.IsNullOrWhiteSpace(_o.GoogleClientId))
             throw new AppException(500, "Auth__GoogleClientId is not configured");
+        if (string.IsNullOrWhiteSpace(idToken)) throw AppException.Unauthorized("Google sign-in could not be verified");
         try
         {
             return await GoogleJsonWebSignature.ValidateAsync(idToken,
                 new GoogleJsonWebSignature.ValidationSettings { Audience = [_o.GoogleClientId] });
         }
-        catch (InvalidJwtException)
+        catch (Exception e) when (e is InvalidJwtException or FormatException or ArgumentException or Newtonsoft.Json.JsonException)
         {
             throw AppException.Unauthorized("Google sign-in could not be verified");
         }
