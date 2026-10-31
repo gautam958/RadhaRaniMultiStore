@@ -1,0 +1,22 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+
+    "Auth__GoogleClientId": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "Auth__OwnerEmails": "gautam958@gmail.com",
+    "Auth__TokenSecret": "CHANGE-ME-run-openssl-rand-base64-48",
+    "Auth__SessionDays": "7",
+    "Auth__DevLogin": "false",
+
+    "Shop__CashierMaxBillDiscountPercent": "5"
+  },
+  "ConnectionStrings": {
+    "Db": "Server=localhost,1433;Database=RadhaRaniStore;User Id=sa;Password=RadhaRani_Dev#2026;TrustServerCertificate=True"
+  },
+  "Host": {
+    "CORS": "http://localhost:5173",
+    "CORSCredentials": false
+  }
+}

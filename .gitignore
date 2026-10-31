@@ -1,0 +1,16 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+local.settings.json
+# Node
+node_modules/
+dist/
+dev-dist/
+.env
+.env.local
+.DS_Store
+logs/
+data/
+.npm-cache/
