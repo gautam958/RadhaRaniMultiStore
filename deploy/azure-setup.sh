@@ -4,7 +4,8 @@
 # Creates: resource group, Azure SQL (serverless, free offer), storage, Function App (Flex Consumption, .NET 10),
 # app settings, CORS for GitHub Pages, and an OIDC identity so GitHub Actions can deploy without passwords.
 # Safe to re-run: existing resources are reused. Secrets are generated here and never printed.
-# Options (env vars): SQL_SERVER=<existing server> SQL_RG=<its resource group> GOOGLE_CLIENT_ID=<client id>
+# Options (env vars): GOOGLE_CLIENT_ID=<client id>  SQL_LOCS="southindia southeastasia …"
+#                     SQL_SERVER=<existing server> SQL_RG=<its resource group>  (to reuse a server instead)
 set -euo pipefail
 
 LOC="${LOC:-centralindia}"
@@ -32,25 +33,41 @@ if ! az functionapp show -g "$RG" -n "$FUNC" -o none 2>/dev/null; then
 fi
 HOST=$(az functionapp show -g "$RG" -n "$FUNC" --query defaultHostName -o tsv)
 
-# Database: an existing SQL server can be reused (SQL_SERVER + SQL_RG), else a new one is created.
+# Database: reuse SQL_SERVER (+SQL_RG) if given; otherwise a dedicated server in the first region (SQL_LOCS)
+# where Azure accepts a FREE-offer serverless database. Nothing paid is ever created.
 SQL_RG="${SQL_RG:-$RG}"
-if [ -n "${SQL_SERVER:-}" ]; then SQL="$SQL_SERVER"; fi
+SQL_LOCS="${SQL_LOCS:-southindia southeastasia eastasia westeurope eastus}"
+ME_NAME=$(az account show --query user.name -o tsv); ME_ID=$(az ad signed-in-user show --query id -o tsv)
 
-if ! az sql server show -g "$SQL_RG" -n "$SQL" -o none 2>/dev/null; then
-  step "Azure SQL server $SQL"
-  az sql server create -g "$SQL_RG" -n "$SQL" -l "$LOC" -u rradmin -p "Rr$(openssl rand -hex 14)#9a" \
-    --external-admin-principal-type User --external-admin-name "$(az account show --query user.name -o tsv)" \
-    --external-admin-sid "$(az ad signed-in-user show --query id -o tsv)" -o none
+free_db() {  # $1 server  → creates/validates the free DB, returns 0 if it is on the free offer
+  if ! az sql db show -g "$SQL_RG" -s "$1" -n "$DB" -o none 2>/dev/null; then
+    az sql db create -g "$SQL_RG" -s "$1" -n "$DB" --edition GeneralPurpose --compute-model Serverless \
+      --family Gen5 --capacity 2 --use-free-limit --free-limit-exhaustion-behavior AutoPause -o none || return 1
+  fi
+  [ "$(az sql db show -g "$SQL_RG" -s "$1" -n "$DB" --query useFreeLimit -o tsv)" = "true" ]
+}
+
+if [ -n "${SQL_SERVER:-}" ]; then
+  SQL="$SQL_SERVER"
+  step "Database $DB on existing server $SQL (free offer)"
+  free_db "$SQL" || { echo "!! Could not create a free-offer database on $SQL"; exit 1; }
+else
+  FOUND=""
+  for L in $SQL_LOCS; do
+    SQL="sql-radharani-$SUFFIX-$L"
+    step "SQL server $SQL ($L) + free database $DB"
+    if ! az sql server show -g "$SQL_RG" -n "$SQL" -o none 2>/dev/null; then
+      az sql server create -g "$SQL_RG" -n "$SQL" -l "$L" -u rradmin -p "Rr$(openssl rand -hex 14)#9a" \
+        --external-admin-principal-type User --external-admin-name "$ME_NAME" --external-admin-sid "$ME_ID" -o none || continue
+    fi
+    if free_db "$SQL"; then FOUND=1; break; fi
+    echo "   free offer refused in $L — removing the empty server and trying the next region"
+    az sql server delete -g "$SQL_RG" -n "$SQL" --yes -o none || true
+  done
+  [ -n "$FOUND" ] || { echo "!! No region accepted a free-offer database. Nothing paid was created."; exit 1; }
 fi
 az sql server firewall-rule create -g "$SQL_RG" -s "$SQL" -n AllowAllWindowsAzureIps --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0 -o none 2>/dev/null || true
-
-step "Database $DB on $SQL (serverless, free offer, auto-pause)"
-if ! az sql db show -g "$SQL_RG" -s "$SQL" -n "$DB" -o none 2>/dev/null; then
-  az sql db create -g "$SQL_RG" -s "$SQL" -n "$DB" \
-    --edition GeneralPurpose --compute-model Serverless --family Gen5 --capacity 2 \
-    --use-free-limit --free-limit-exhaustion-behavior AutoPause -o none \
-  || { echo "!! Free-offer database could not be created."; exit 1; }
-fi
+echo "   ✓ free database: $SQL / $DB (useFreeLimit=true, auto-pauses when the monthly free limit is used)"
 
 # App login that exists ONLY inside this database (contained user) — the server admin password is never touched.
 APP_USER="radharani_app"
@@ -69,6 +86,7 @@ if [ -z "$EXISTING_CONN" ]; then
     echo "   database waking up, retrying in 20s…"; sleep 20
   done
   az sql server firewall-rule delete -g "$SQL_RG" -s "$SQL" -n CloudShellSetupTemp -o none
+  [ "$i" = 5 ] && { echo "!! Could not create the database login"; exit 1; }
   NEW_CONN="Server=tcp:$SQL.database.windows.net,1433;Database=$DB;User ID=$APP_USER;Password=$APP_PW;Encrypt=True;TrustServerCertificate=False;Connection Timeout=60;"
 fi
 
