@@ -62,6 +62,8 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, RadhaR
         m.Entity<ProductImage>(e =>
         {
             e.HasKey(x => x.ProductId);
+            // The key is the product's id, never generated — otherwise SQL Server makes it IDENTITY and rejects inserts.
+            e.Property(x => x.ProductId).ValueGeneratedNever();
             e.Property(x => x.ContentType).HasMaxLength(50);
         });
 

@@ -65,6 +65,21 @@ public static class DbSchema
                 CREATE INDEX [IX_AuditLogs_At] ON [dbo].[AuditLogs] ([At]);
             END
             """);
+        // Databases created before ProductImages.ProductId was marked ValueGeneratedNever got an IDENTITY key,
+        // which makes every photo save fail. Rebuild the table without IDENTITY, keeping any rows.
+        db.Database.ExecuteSqlRaw("""
+            IF COLUMNPROPERTY(OBJECT_ID(N'dbo.ProductImages'), N'ProductId', 'IsIdentity') = 1
+            BEGIN
+                CREATE TABLE [dbo].[ProductImages_new] (
+                    [ProductId] int NOT NULL CONSTRAINT [PK_ProductImages_new] PRIMARY KEY,
+                    [Data] varbinary(max) NOT NULL, [ContentType] nvarchar(50) NOT NULL, [UpdatedAt] datetime2 NOT NULL);
+                EXEC(N'INSERT INTO [dbo].[ProductImages_new] ([ProductId],[Data],[ContentType],[UpdatedAt])
+                       SELECT [ProductId],[Data],[ContentType],[UpdatedAt] FROM [dbo].[ProductImages]');
+                DROP TABLE [dbo].[ProductImages];
+                EXEC sp_rename N'dbo.ProductImages_new', N'ProductImages';
+                EXEC sp_rename N'dbo.PK_ProductImages_new', N'PK_ProductImages', N'OBJECT';
+            END
+            """);
         foreach (var (table, column, _, def) in Columns)
             db.Database.ExecuteSqlRaw(
                 $"IF COL_LENGTH(N'dbo.{table}', N'{column}') IS NULL ALTER TABLE [dbo].[{table}] ADD [{column}] {def};");
