@@ -4,12 +4,13 @@ import { useApi, toast } from '../lib/hooks';
 import { useAuth } from '../lib/auth';
 import { Empty, ErrorBox, Field, Loading, Modal } from '../components/ui';
 import { modeLabel, money, time, todayIso } from '../lib/util';
+import { BillPeek } from '../components/BillPeek';
 
 interface DayBook {
   date: string; openingCash: number; closingCash: number;
   byMode: { mode: string; in: number; out: number }[];
   salesTotal: number; billCount: number; expensesTotal: number;
-  entries: { id: number; entryDate: string; direction: 'In' | 'Out'; category: string; mode: string; amount: number; party?: string; expenseHead?: string; narration?: string; userEmail: string }[];
+  entries: { id: number; entryDate: string; direction: 'In' | 'Out'; category: string; mode: string; amount: number; party?: string; expenseHead?: string; refType?: string; refId?: number; narration?: string; userEmail: string }[];
 }
 
 const HEADS = ['Rent', 'Electricity', 'Salary', 'Transport', 'Tea / snacks', 'Packaging', 'Repairs', 'Other'];
@@ -17,6 +18,11 @@ const CAT: Record<string, string> = {
   Sale: 'Sale', SaleVoid: 'Bill cancelled', Purchase: 'Stock purchase', Expense: 'Expense',
   CustomerPayment: 'Udhaar received', SupplierPayment: 'Paid supplier', OpeningBalance: 'Opening', Other: 'Other'
 };
+
+// Sale rows: show the bill no as a peek chip and the rest of the narration beside it.
+const billNo = (id: number) => `RR-${String(id).padStart(6, '0')}`;
+const restOf = (n: string | undefined, no: string) =>
+  n?.replace(`Bill ${no}`, '').replace(` ${no}`, '').replace(/^[\s:·-]+/, '').trim() || undefined;
 
 /** Rozmel / day book: every rupee in and out for the day, with expected cash in the drawer. */
 export function DayBookPage() {
@@ -117,7 +123,11 @@ export function DayBookPage() {
                       <tr key={e.id} className={e.category === 'SaleVoid' ? 'voided-row' : ''}>
                         <td>{time(e.entryDate)}</td>
                         <td>{CAT[e.category] ?? e.category}</td>
-                        <td>{[e.expenseHead, e.party, e.narration].filter(Boolean).join(' · ')}<div className="muted small">{e.userEmail.split('@')[0]}</div></td>
+                        <td>{e.refType === 'Sale' && e.refId
+                          ? <><BillPeek saleId={e.refId} label={billNo(e.refId)} />{' '}
+                              <span>{[e.party, restOf(e.narration, billNo(e.refId))].filter(Boolean).join(' · ')}</span></>
+                          : [e.expenseHead, e.party, e.narration].filter(Boolean).join(' · ')}
+                          <div className="muted small">{e.userEmail.split('@')[0]}</div></td>
                         <td>{modeLabel[e.mode]}</td>
                         <td className="num save">{e.direction === 'In' ? money(e.amount) : ''}</td>
                         <td className="num danger">{e.direction === 'Out' ? money(e.amount) : ''}</td>

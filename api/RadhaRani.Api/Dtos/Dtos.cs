@@ -58,7 +58,7 @@ public record SaleRequest(List<SaleLine> Items, decimal BillDiscount, PaymentMod
     int? CustomerId, string? PaymentRef, string? Remarks = null, decimal? CashReceived = null);
 
 public record SaleItemDto(int ProductId, string ProductName, decimal Qty, decimal Mrp, decimal UnitPrice,
-    decimal DiscountPercent, decimal GstRate, decimal LineTotal);
+    decimal DiscountPercent, decimal GstRate, decimal LineTotal, string? ImageUrl = null, string? Unit = null);
 public record SaleDto(int Id, string BillNo, DateTime CreatedAt, int? CustomerId, string? CustomerName, string? CustomerPhone,
     decimal SubTotal, decimal ItemDiscount, decimal BillDiscount, decimal Total, decimal TaxAmount,
     PaymentMode PaymentMode, string? PaymentRef, SaleStatus Status, string CashierEmail, string? VoidReason,

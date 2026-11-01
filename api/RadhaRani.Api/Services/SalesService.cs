@@ -149,11 +149,24 @@ public class SalesService(AppDbContext db, StockService stock, LedgerService led
 
     private static string Cut(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
 
-    public static SaleDto ToDto(Sale s, bool includeProfit) => new(
+    public record ItemInfo(string? ImageUrl, string Unit);
+
+    /// <summary>Photo URL + unit for the items on these bills (removed items included), for bill previews.</summary>
+    public static async Task<Dictionary<int, ItemInfo>> ItemInfoFor(AppDbContext db, IEnumerable<Sale> sales)
+    {
+        var ids = sales.SelectMany(s => s.Items).Select(i => i.ProductId).Distinct().ToList();
+        if (ids.Count == 0) return [];
+        return await db.Products.IgnoreQueryFilters().AsNoTracking().Where(p => ids.Contains(p.Id))
+            .Select(p => new { p.Id, p.HasImage, p.UpdatedAt, p.Unit })
+            .ToDictionaryAsync(p => p.Id, p => new ItemInfo(p.HasImage ? $"/api/products/{p.Id}/image?v={p.UpdatedAt.Ticks}" : null, p.Unit));
+    }
+
+    public static SaleDto ToDto(Sale s, bool includeProfit, IReadOnlyDictionary<int, ItemInfo>? info = null) => new(
         s.Id, BillNo(s.Id), s.CreatedAt, s.CustomerId, s.Customer?.Name, s.Customer?.Phone,
         s.SubTotal, s.ItemDiscount, s.BillDiscount, s.Total, s.TaxAmount,
         s.PaymentMode, s.PaymentRef, s.Status, s.CashierEmail, s.VoidReason,
-        s.Items.Select(i => new SaleItemDto(i.ProductId, i.ProductName, i.Qty, i.Mrp, i.UnitPrice, i.DiscountPercent, i.GstRate, i.LineTotal)).ToList(),
+        s.Items.Select(i => new SaleItemDto(i.ProductId, i.ProductName, i.Qty, i.Mrp, i.UnitPrice, i.DiscountPercent, i.GstRate, i.LineTotal,
+            info?.GetValueOrDefault(i.ProductId)?.ImageUrl, info?.GetValueOrDefault(i.ProductId)?.Unit)).ToList(),
         includeProfit ? s.Total - s.Items.Sum(i => i.CostPrice * i.Qty) : null, s.Remarks,
         s.CashReceived, s.ChangeReturned);
 }

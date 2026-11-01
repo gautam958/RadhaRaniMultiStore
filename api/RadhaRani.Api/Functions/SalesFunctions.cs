@@ -35,7 +35,8 @@ public class SalesFunctions(AppDbContext db, SalesService sales, CurrentUser me)
             // A customer's bill history (all dates, latest 200) — shown on the Customers screen.
             q = q.Where(s => s.CustomerId == customerId);
             var bills = await q.OrderByDescending(s => s.Id).Take(200).ToListAsync();
-            return Json(bills.Select(s => SalesService.ToDto(s, me.Is(Role.Owner))));
+            var billInfo = await SalesService.ItemInfoFor(db, bills);
+            return Json(bills.Select(s => SalesService.ToDto(s, me.Is(Role.Owner), billInfo)));
         }
 
         var (from, to, _) = req.QDay();
@@ -43,7 +44,8 @@ public class SalesFunctions(AppDbContext db, SalesService sales, CurrentUser me)
         if (user.Role == Role.Cashier) q = q.Where(s => s.CashierEmail == user.Email);
 
         var list = await q.OrderByDescending(s => s.Id).ToListAsync();
-        return Json(list.Select(s => SalesService.ToDto(s, me.Is(Role.Owner))));
+        var info = await SalesService.ItemInfoFor(db, list);
+        return Json(list.Select(s => SalesService.ToDto(s, me.Is(Role.Owner), info)));
     }
 
     [Function("Sales_Get")]
@@ -65,6 +67,6 @@ public class SalesFunctions(AppDbContext db, SalesService sales, CurrentUser me)
     {
         var s = await db.Sales.AsNoTracking().Include(x => x.Customer).Include(x => x.Items).FirstOrDefaultAsync(x => x.Id == id)
                 ?? throw AppException.NotFound("Bill");
-        return Json(SalesService.ToDto(s, me.Is(Role.Owner)), status);
+        return Json(SalesService.ToDto(s, me.Is(Role.Owner), await SalesService.ItemInfoFor(db, [s])), status);
     }
 }

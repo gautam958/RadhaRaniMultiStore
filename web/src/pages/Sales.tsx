@@ -4,6 +4,7 @@ import { useApi, useDebounced, toast } from '../lib/hooks';
 import { useAuth } from '../lib/auth';
 import { Empty, Field, Loading, Modal } from '../components/ui';
 import { Receipt, whatsappBillText, whatsappLink } from '../components/Receipt';
+import { BillPeek, ItemStrip } from '../components/BillPeek';
 import { modeLabel, money, time, todayIso } from '../lib/util';
 
 export function SalesPage() {
@@ -95,14 +96,16 @@ export function SalesPage() {
         <ul className="list">
           {shown.map(s => (
             <li key={s.id}>
-              <button className={`list-row btn-row ${s.status === 'Voided' ? 'voided' : ''}`} onClick={() => setOpen(s)}>
-                <span className="grow"><b>{s.billNo}</b> <span className="muted">{time(s.createdAt)}</span>
-                  <div className="muted small">{s.items.length} items · {s.customerName ?? 'Walk-in'} · {s.cashierEmail.split('@')[0]}</div>
+              <div role="button" tabIndex={0} className={`list-row btn-row bill-row ${s.status === 'Voided' ? 'voided' : ''}`}
+                onClick={() => setOpen(s)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(s); } }}>
+                <span className="grow"><BillPeek sale={s} label={s.billNo} onOpen={setOpen} /> <span className="muted">{time(s.createdAt)}</span>
+                  <div className="muted small">{s.items.length} {s.items.length === 1 ? 'item' : 'items'} · {s.customerName ?? 'Walk-in'} · {s.cashierEmail.split('@')[0]}</div>
+                  <ItemStrip items={s.items} />
                   {s.cashReceived != null && <div className="muted small">Cash recd {money(s.cashReceived)} · change {money(s.changeReturned ?? 0)}</div>}
                   {s.remarks && <div className="small remark-line">📝 {s.remarks}</div>}</span>
                 <span className="badge">{modeLabel[s.paymentMode]}</span>
                 <b>{money(s.total)}</b>
-              </button>
+              </div>
             </li>
           ))}
         </ul>

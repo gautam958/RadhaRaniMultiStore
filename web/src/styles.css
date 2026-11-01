@@ -295,3 +295,46 @@ textarea.input.remarks { resize: vertical; min-height: 44px; font: inherit; }
   .stat b { font-size: 1.15rem; }
   .input { font-size: 16px; } /* prevents iOS zoom on focus */
 }
+
+/* ---------- Bill peek (items on a bill) ---------- */
+.bill-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 7px; border-radius: 999px; border: 1px dashed var(--line);
+  background: var(--surface-2); color: var(--ink); font: inherit; font-weight: 700; font-size: .92em; cursor: pointer; white-space: nowrap;
+  transition: border-color .15s, background .15s; }
+.bill-chip span[aria-hidden] { font-size: .85em; }
+.bill-chip:hover, .bill-chip.on { border-color: var(--brand); border-style: solid; background: var(--brand-soft); color: var(--brand); }
+.bill-chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.bill-row { cursor: pointer; }
+.bill-row:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: 8px; }
+
+.bill-peek { position: fixed; z-index: 60; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .22), 0 2px 6px rgba(0, 0, 0, .08); padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  animation: peek-in .14s ease-out; text-align: left; font-size: 14px; }
+.bill-peek.above { animation-name: peek-in-up; }
+@keyframes peek-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes peek-in-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bill-peek { animation: none; } }
+.peek-head { display: flex; align-items: flex-start; gap: 8px; }
+.peek-head > div:first-child { flex: 1; min-width: 0; }
+.peek-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.peek-items { list-style: none; margin: 0; padding: 0; max-height: 264px; overflow-y: auto; overscroll-behavior: contain;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.peek-items li { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.peek-items li + li { border-top: 1px dashed var(--line); }
+.peek-name { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.peek-name, .peek-name .small { overflow: hidden; text-overflow: ellipsis; }
+.peek-thumb, .strip-cell { position: relative; display: inline-flex; flex-shrink: 0; }
+.qty-pill { position: absolute; right: -5px; bottom: -5px; min-width: 20px; padding: 0 5px; border-radius: 999px; background: var(--brand);
+  color: var(--brand-ink); font-size: .7rem; font-weight: 700; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--surface); }
+.qty-pill.sm { right: -4px; bottom: -4px; min-width: 16px; line-height: 15px; font-size: .64rem; padding: 0 4px; }
+.peek-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.peek-foot b { font-size: 1.05rem; }
+.peek-remark { background: var(--surface-2); border-radius: 8px; padding: 6px 8px; }
+.peek-skel { height: 44px; border-radius: 10px; background: linear-gradient(90deg, var(--surface-2), var(--line), var(--surface-2));
+  background-size: 200% 100%; animation: skel 1.1s linear infinite; }
+@keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.item-strip { display: flex; align-items: center; gap: 8px; margin: 7px 0 6px; flex-wrap: wrap; }
+.item-strip .thumb { border-radius: 8px; border: 1px solid var(--line); }
+.item-strip .thumb.ph { font-size: .8rem; }
+.strip-more { font-size: .78rem; font-weight: 700; color: var(--muted); background: var(--surface-2); border-radius: 8px; padding: 6px 8px; }
+.voided .item-strip { opacity: .55; }

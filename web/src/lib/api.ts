@@ -29,7 +29,7 @@ export interface Customer {
 }
 export interface Supplier { id: number; name: string; phone?: string; email?: string; gstin?: string; address?: string; due: number }
 export interface AuditEntry { id: number; at: string; userEmail: string; action: string; entity: string; entityId?: string; summary?: string; changes?: string }
-export interface SaleItem { productId: number; productName: string; qty: number; mrp: number; unitPrice: number; discountPercent: number; gstRate: number; lineTotal: number }
+export interface SaleItem { productId: number; productName: string; qty: number; mrp: number; unitPrice: number; discountPercent: number; gstRate: number; lineTotal: number; imageUrl?: string; unit?: string }
 export interface Sale {
   id: number; billNo: string; createdAt: string; customerId?: number; customerName?: string; customerPhone?: string;
   subTotal: number; itemDiscount: number; billDiscount: number; total: number; taxAmount: number;
