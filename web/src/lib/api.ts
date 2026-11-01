@@ -5,6 +5,9 @@ const TOKEN_KEY = 'rr.session';
 
 export type Role = 'Cashier' | 'Manager' | 'Owner';
 export type PaymentMode = 'Cash' | 'Upi' | 'Card' | 'Credit';
+/** Hard-coded: only this account sees Staff and Audit Log (the API enforces the same rule). */
+export const SUPER_ADMIN_EMAIL = 'gautam958@gmail.com';
+
 export const roleRank: Record<Role, number> = { Cashier: 1, Manager: 2, Owner: 3 };
 
 export interface Me { id: number; email: string; name: string; role: Role; pictureUrl?: string }

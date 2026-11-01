@@ -1,9 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import type { Role } from '../lib/api';
+import { SUPER_ADMIN_EMAIL, type Me, type Role } from '../lib/api';
 import { shop } from '../lib/util';
 
-interface NavItem { to: string; label: string; icon: string; min: Role; mobile?: boolean }
+interface NavItem { to: string; label: string; icon: string; min: Role; mobile?: boolean; superAdmin?: boolean }
 
 export const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: '◧', min: 'Manager', mobile: true },
@@ -14,13 +14,16 @@ export const NAV: NavItem[] = [
   { to: '/customers', label: 'Customers', icon: '👥', min: 'Cashier', mobile: true },
   { to: '/daybook', label: 'Day Book', icon: '📒', min: 'Manager' },
   { to: '/suppliers', label: 'Suppliers', icon: '🚚', min: 'Manager' },
-  { to: '/audit', label: 'Audit Log', icon: '🕵', min: 'Manager' },
-  { to: '/users', label: 'Staff', icon: '🔑', min: 'Owner' }
+  { to: '/audit', label: 'Audit Log', icon: '🕵', min: 'Owner', superAdmin: true },
+  { to: '/users', label: 'Staff', icon: '🔑', min: 'Owner', superAdmin: true }
 ];
+
+export const isSuperAdmin = (u: Me | null | undefined) => u?.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+const visible = (n: NavItem, user: Me | null, can: (r: Role) => boolean) => can(n.min) && (!n.superAdmin || isSuperAdmin(user));
 
 export function Layout() {
   const { user, can, logout } = useAuth();
-  const items = NAV.filter(n => can(n.min));
+  const items = NAV.filter(n => visible(n, user, can));
   const mobile = items.filter(n => n.mobile).slice(0, 4);
 
   return (
@@ -61,7 +64,7 @@ export function MorePage() {
     <div className="page">
       <h1>More</h1>
       <div className="more-grid">
-        {NAV.filter(n => can(n.min)).map(n => (
+        {NAV.filter(n => visible(n, user, can)).map(n => (
           <NavLink key={n.to} to={n.to} className="card more-tile"><span className="nav-ico big">{n.icon}</span>{n.label}</NavLink>
         ))}
       </div>

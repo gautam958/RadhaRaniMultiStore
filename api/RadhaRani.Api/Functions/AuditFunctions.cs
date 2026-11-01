@@ -19,7 +19,7 @@ public class AuditFunctions(AppDbContext db, CurrentUser me)
     [Function("Audit_List")]
     public async Task<IActionResult> List([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "audit")] HttpRequest req)
     {
-        me.Require(Role.Manager);
+        me.RequireSuperAdmin();
         var to = DateOnly.TryParse(req.Q("to"), out var t) ? t : ShopClock.Today;
         var from = DateOnly.TryParse(req.Q("from"), out var f) ? f : to.AddDays(-6);
         if (from > to) (from, to) = (to, from);

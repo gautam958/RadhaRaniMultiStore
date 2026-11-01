@@ -86,14 +86,14 @@ public class AuthFunctions(AppDbContext db, TokenService tokens, IOptions<AuthOp
     [Function("Users_List")]
     public async Task<IActionResult> List([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "users")] HttpRequest req)
     {
-        me.Require(Role.Owner);
+        me.RequireSuperAdmin();
         return Json(await db.Users.OrderBy(u => u.Email).ToListAsync());
     }
 
     [Function("Users_Upsert")]
     public async Task<IActionResult> Upsert([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "users")] HttpRequest req)
     {
-        var owner = me.Require(Role.Owner);
+        var owner = me.RequireSuperAdmin();
         var body = await req.ReadBody<UserUpsert>();
         var email = body.Email?.Trim().ToLowerInvariant() ?? "";
         if (!email.Contains('@')) throw AppException.BadRequest("Enter a valid Gmail / Google email");

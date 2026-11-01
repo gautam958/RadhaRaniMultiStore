@@ -39,6 +39,17 @@ public class CurrentUser
     public string Email => Required.Email;
     public bool Is(Role min) => User is not null && User.Role >= min;
 
+    /// <summary>Hard-coded: only this account may manage staff and read the audit log.</summary>
+    public const string SuperAdminEmail = "gautam958@gmail.com";
+
+    public AppUser RequireSuperAdmin()
+    {
+        var u = Required;
+        if (!string.Equals(u.Email, SuperAdminEmail, StringComparison.OrdinalIgnoreCase) || !u.IsActive)
+            throw AppException.Forbidden("Only the shop admin can open this");
+        return u;
+    }
+
     public AppUser Require(Role min)
     {
         var u = Required;

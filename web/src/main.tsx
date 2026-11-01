@@ -4,7 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './lib/auth';
 import type { Role } from './lib/api';
-import { Layout, MorePage } from './components/Layout';
+import { Layout, MorePage, isSuperAdmin } from './components/Layout';
 import { Toasts } from './components/ui';
 import { LoginPage } from './pages/Login';
 import { DashboardPage } from './pages/Dashboard';
@@ -24,6 +24,11 @@ function Guard({ min, children }: { min: Role; children: JSX.Element }) {
   return can(min) ? children : <Navigate to="/pos" replace />;
 }
 
+function SuperAdmin({ children }: { children: JSX.Element }) {
+  const { user } = useAuth();
+  return isSuperAdmin(user) ? children : <Navigate to="/pos" replace />;
+}
+
 function App() {
   const { user } = useAuth();
   if (!user) return <LoginPage />;
@@ -38,8 +43,8 @@ function App() {
         <Route path="customers" element={<CustomersPage />} />
         <Route path="daybook" element={<Guard min="Manager"><DayBookPage /></Guard>} />
         <Route path="suppliers" element={<Guard min="Manager"><SuppliersPage /></Guard>} />
-        <Route path="users" element={<Guard min="Owner"><UsersPage /></Guard>} />
-        <Route path="audit" element={<Guard min="Manager"><AuditPage /></Guard>} />
+        <Route path="users" element={<SuperAdmin><UsersPage /></SuperAdmin>} />
+        <Route path="audit" element={<SuperAdmin><AuditPage /></SuperAdmin>} />
         <Route path="more" element={<MorePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
