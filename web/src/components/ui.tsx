@@ -62,7 +62,7 @@ const validDate = (v: string, min?: string, max?: string) => {
  * reports an empty value; if React then re-applies a value, Chrome/Safari wipe every part of the date.
  * So the box is left to the browser while you edit (no React-controlled value): only a complete, in-range date
  * is passed on, leaving the box with an unfinished date puts back the last good one, and outside changes
- * (‹ › buttons, "Today") are written in when the box isn't being edited. Clicking anywhere opens the calendar.
+ * (‹ › buttons, "Today") are written in when the box isn't being edited. Clicking anywhere opens the browser's own calendar (see .date-input in styles.css — no script, so nothing can close it).
  */
 export function DateInput({ value, onChange, min, max, className = 'input', ...rest }: {
   value: string; onChange: (v: string) => void; min?: string; max?: string; className?: string;
@@ -81,7 +81,6 @@ export function DateInput({ value, onChange, min, max, className = 'input', ...r
     <input ref={ref} type="date" className={`${className} date-input ${bad ? 'invalid' : ''}`} min={min} max={max} {...rest}
       onChange={e => { const v = e.target.value; const ok = validDate(v, min, max); setBad(!ok && v !== ''); if (ok && v !== last.current) onChange(v); }}
       onBlur={e => { if (!validDate(e.target.value, min, max)) { e.target.value = last.current; setBad(false); } }}
-      onClick={() => { try { ref.current?.showPicker?.(); } catch { /* picker already open or not allowed */ } }}
       onKeyDown={e => { if (e.key === 'Enter') ref.current?.blur(); }} />
   );
 }
