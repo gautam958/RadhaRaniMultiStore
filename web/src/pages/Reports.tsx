@@ -105,11 +105,11 @@ function ReportBody({ r }: { r: Report }) {
   return (
     <>
       <div className="stats report-kpis">
-        <Kpi label="Net sales" value={k.netSales} prev={k.prev.netSales} sub={`${k.bills} bills · avg ${money(k.avgBill)}`} />
+        <Kpi label="Net sales" value={k.netSales} prev={k.prev.netSales} sub={`${k.bills} bill${k.bills === 1 ? '' : 's'} · avg ${money(k.avgBill)}`} />
         <Kpi label="Gross profit" value={k.grossProfit} prev={k.prev.grossProfit} sub={`${fmtPct(k.margin)} margin`} accent />
         <Kpi label="Net profit" value={k.netProfit} prev={k.prev.netProfit} sub="after expenses & losses" />
         <Kpi label="Actual cost of goods sold" value={k.cogs} prev={k.prev.cogs} sub={`${qty(k.units)} units sold`} invert />
-        <Kpi label="Expenses" value={k.expenses} prev={k.prev.expenses} sub={`${p.expenseHeads.length} heads`} invert />
+        <Kpi label="Expenses" value={k.expenses} prev={k.prev.expenses} sub={`${p.expenseHeads.length} expense type${p.expenseHeads.length === 1 ? '' : 's'}`} invert />
         <Kpi label="Bills" value={k.bills} prev={k.prev.bills} count sub={p.cancelled.bills ? `+ ${p.cancelled.bills} cancelled` : 'none cancelled'} />
       </div>
       <p className="muted small compare-note">▲▼ compared with {r.previous.label}{r.isCurrent ? ' — this period is still running' : ''}.</p>
@@ -272,7 +272,7 @@ function Payments({ rows, total }: { rows: Report['payments']; total: number }) 
     <>
       <div className="pay-bar">{shown.map(r => <span key={r.mode} className={`pm-${r.mode}`} style={{ width: `${pct(r.amount, total)}%` }} title={`${modeLabel[r.mode]} ${money(r.amount)}`} />)}</div>
       <ul className="pay-list">{shown.map(r => (
-        <li key={r.mode}><span className={`dot pm-${r.mode}`} />{modeLabel[r.mode]}<span className="muted small">{r.bills} bills</span>
+        <li key={r.mode}><span className={`dot pm-${r.mode}`} />{modeLabel[r.mode]}<span className="muted small">{r.bills} bill{r.bills === 1 ? '' : 's'}</span>
           <span className="grow" /><b>{money(r.amount)}</b><span className="muted small pay-pct">{fmtPct(pct(r.amount, total))}</span></li>
       ))}</ul>
     </>
@@ -291,6 +291,7 @@ function MoneyFlow({ m }: { m: Report['money'] }) {
           <Row l="− Cash out" v={-m.cashOut} cls="danger" />
           <Row l="Closing cash" v={m.cashClosing} strong />
           {m.ownerCashAdded > 0 && <p className="muted small">Includes {money(m.ownerCashAdded)} you added to the drawer.</p>}
+          {(m.cashClosing < 0 || m.cashOpening < 0) && <p className="small danger">A drawer can't go below ₹0 — cash paid out was more than cash recorded in. Set the starting cash in <Link to="/daybook">Day Book → Set opening cash</Link>, or record that expense as UPI/Card if it wasn't paid from the drawer.</p>}
         </div>
         <div className="flow">
           <h3>📒 Udhaar (customers)</h3>
@@ -312,7 +313,7 @@ function MoneyFlow({ m }: { m: Report['money'] }) {
 }
 
 function Row({ l, v, strong, cls }: { l: string; v: number; strong?: boolean; cls?: string }) {
-  return <div className={`flow-row ${strong ? 'strong' : ''}`}><span>{l}</span><span className={`num ${cls ?? ''}`}>{money(v)}</span></div>;
+  return <div className={`flow-row ${strong ? 'strong' : ''}`}><span>{l}</span><span className={`num ${cls ?? ''}`}>{money(v === 0 ? 0 : v)}</span></div>;
 }
 
 type Sort = 'sales' | 'profit' | 'qty' | 'margin';
@@ -348,7 +349,7 @@ function ItemsSection({ r }: { r: Report }) {
             <tr key={i.productId}>
               <td className="muted">{n + 1}</td>
               <td><span className="row gap"><Thumb url={i.imageUrl || null} name={i.name} size={34} />
-                <span>{i.name}<div className="muted small">{i.category} · {i.bills} bills · {qty(i.inStock)} {i.unit} left</div></span></span></td>
+                <span>{i.name}<div className="muted small">{i.category} · {i.bills} bill{i.bills === 1 ? '' : 's'} · {qty(i.inStock)} {i.unit} left</div></span></span></td>
               <td className="num">{qty(i.qty)} <span className="muted small">{i.unit}</span></td>
               <td className="num">{money(i.sales)}</td>
               <td className="num">{i.noCost ? <span className="badge Low" title="No cost price on this item">no cost</span> : money(i.cost)}</td>
