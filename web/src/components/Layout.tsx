@@ -13,6 +13,7 @@ export const NAV: NavItem[] = [
   { to: '/sales', label: 'Bills', icon: '🧾', min: 'Cashier' },
   { to: '/customers', label: 'Customers', icon: '👥', min: 'Cashier', mobile: true },
   { to: '/daybook', label: 'Day Book', icon: '📒', min: 'Manager' },
+  { to: '/reports', label: 'Reports', icon: '📊', min: 'Owner' },
   { to: '/suppliers', label: 'Suppliers', icon: '🚚', min: 'Manager' },
   { to: '/audit', label: 'Audit Log', icon: '🕵', min: 'Owner', superAdmin: true },
   { to: '/users', label: 'Staff', icon: '🔑', min: 'Owner', superAdmin: true }
