@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { api, type PaymentMode, type Sale } from '../lib/api';
 import { useApi, useDebounced, toast } from '../lib/hooks';
 import { useAuth } from '../lib/auth';
-import { Empty, Field, Loading, Modal } from '../components/ui';
+import { Empty, Field, Loading, Modal, DateInput } from '../components/ui';
 import { Receipt, whatsappBillText, whatsappLink } from '../components/Receipt';
 import { BillPeek, ItemStrip } from '../components/BillPeek';
 import { modeLabel, money, time, todayIso } from '../lib/util';
@@ -54,7 +54,7 @@ export function SalesPage() {
     <div className="page">
       <div className="row between wrap">
         <h1>Bills</h1>
-        <input className="input sm" type="date" value={date} max={todayIso()} onChange={e => setDate(e.target.value)} />
+        <DateInput className="input sm" value={date} max={todayIso()} onChange={setDate} aria-label="Bill date" />
       </div>
       <div className="stats">
         {status === 'Voided' ? <>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { api, type PaymentMode } from '../lib/api';
 import { useApi, toast } from '../lib/hooks';
 import { useAuth } from '../lib/auth';
-import { Empty, ErrorBox, Field, Loading, Modal } from '../components/ui';
+import { Empty, ErrorBox, Field, Loading, Modal, DateInput } from '../components/ui';
 import { modeLabel, money, time, todayIso } from '../lib/util';
 import { BillPeek } from '../components/BillPeek';
 
@@ -59,7 +59,7 @@ export function DayBookPage() {
       <div className="row between wrap">
         <h1>Day Book</h1>
         <div className="row gap">
-          <input className="input sm" type="date" value={date} max={todayIso()} onChange={e => setDate(e.target.value)} />
+          <DateInput className="input sm" value={date} max={todayIso()} onChange={setDate} aria-label="Day" />
           <button className="btn primary" onClick={() => setExpense(true)}>+ Expense</button>
         </div>
       </div>

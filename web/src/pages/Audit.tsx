@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { AuditEntry } from '../lib/api';
 import { useApi, useDebounced } from '../lib/hooks';
-import { Empty, ErrorBox, Loading } from '../components/ui';
+import { Empty, ErrorBox, Loading, DateInput } from '../components/ui';
 import { dateTime, todayIso } from '../lib/util';
 
 interface AuditPage { total: number; page: number; pageSize: number; items: AuditEntry[]; users: string[]; entities: string[] }
@@ -45,8 +45,8 @@ export function AuditPage() {
       <p className="muted small" style={{ marginTop: -6 }}>Every change made in the app — who, when and what changed. Entries cannot be edited or deleted.</p>
 
       <div className="card audit-filters">
-        <label className="field"><span>From</span><input className="input" type="date" value={from} max={to} onChange={e => reset(() => setFrom(e.target.value))} /></label>
-        <label className="field"><span>To</span><input className="input" type="date" value={to} max={todayIso()} onChange={e => reset(() => setTo(e.target.value))} /></label>
+        <label className="field"><span>From</span><DateInput value={from} max={to} onChange={v => reset(() => setFrom(v))} aria-label="From" /></label>
+        <label className="field"><span>To</span><DateInput value={to} min={from} max={todayIso()} onChange={v => reset(() => setTo(v))} aria-label="To" /></label>
         <label className="field"><span>Staff</span>
           <select className="input" value={user} onChange={e => reset(() => setUser(e.target.value))}>
             <option value="">Everyone</option>

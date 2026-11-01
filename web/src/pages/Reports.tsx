@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi } from '../lib/hooks';
-import { ErrorBox, Loading, Thumb } from '../components/ui';
+import { ErrorBox, Loading, Thumb, DateInput } from '../components/ui';
 import { modeLabel, money, qty, todayIso } from '../lib/util';
 
 type Period = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
@@ -79,9 +79,9 @@ export function ReportsPage() {
         <div className="seg">{PERIODS.map(([p, l]) => <button key={p} className={period === p ? 'on' : ''} onClick={() => pick(p)}>{l}</button>)}</div>
         {period === 'custom' ? (
           <div className="row gap wrap report-nav">
-            <input className="input sm" type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} aria-label="From" />
+            <DateInput className="input sm" value={from} max={to} onChange={setFrom} aria-label="From" />
             <span className="muted">to</span>
-            <input className="input sm" type="date" value={to} min={from} max={todayIso()} onChange={e => setTo(e.target.value)} aria-label="To" />
+            <DateInput className="input sm" value={to} min={from} max={todayIso()} onChange={setTo} aria-label="To" />
           </div>
         ) : (
           <div className="row gap report-nav">

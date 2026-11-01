@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { Product } from '../lib/api';
 import { apiUrl } from '../lib/api';
 import { qty } from '../lib/util';
@@ -45,4 +45,43 @@ export function Toasts() {
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return <label className="field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;
+}
+
+const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const validDate = (v: string, min?: string, max?: string) => {
+  const m = DATE_RE.exec(v);
+  if (!m || +m[1] < 2000) return false;                 // half-typed year like 0002
+  const d = new Date(`${v}T00:00:00`);
+  if (Number.isNaN(d.getTime()) || d.getDate() !== +m[3]) return false; // e.g. 31 Nov
+  return (!min || v >= min) && (!max || v <= max);
+};
+
+/**
+ * Date box that doesn't reset while you edit it.
+ * While a date is half-typed or impossible (e.g. day 31 before switching the month to October) the browser
+ * reports an empty value; if React then re-applies a value, Chrome/Safari wipe every part of the date.
+ * So the box is left to the browser while you edit (no React-controlled value): only a complete, in-range date
+ * is passed on, leaving the box with an unfinished date puts back the last good one, and outside changes
+ * (‹ › buttons, "Today") are written in when the box isn't being edited. Clicking anywhere opens the calendar.
+ */
+export function DateInput({ value, onChange, min, max, className = 'input', ...rest }: {
+  value: string; onChange: (v: string) => void; min?: string; max?: string; className?: string;
+  'aria-label'?: string; id?: string; required?: boolean;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [bad, setBad] = useState(false);
+  const last = useRef(value);
+  useLayoutEffect(() => {
+    last.current = value;
+    const el = ref.current;
+    // Never write into the box while it's being edited — that is what wipes a half-entered date.
+    if (el && el.value !== value && document.activeElement !== el) { el.value = value; setBad(false); }
+  }, [value, min, max]);
+  return (
+    <input ref={ref} type="date" className={`${className} date-input ${bad ? 'invalid' : ''}`} min={min} max={max} {...rest}
+      onChange={e => { const v = e.target.value; const ok = validDate(v, min, max); setBad(!ok && v !== ''); if (ok && v !== last.current) onChange(v); }}
+      onBlur={e => { if (!validDate(e.target.value, min, max)) { e.target.value = last.current; setBad(false); } }}
+      onClick={() => { try { ref.current?.showPicker?.(); } catch { /* picker already open or not allowed */ } }}
+      onKeyDown={e => { if (e.key === 'Enter') ref.current?.blur(); }} />
+  );
 }

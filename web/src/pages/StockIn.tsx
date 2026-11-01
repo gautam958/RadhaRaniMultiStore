@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError, type Paged, type PaymentMode, type Product, type Supplier } from '../lib/api';
 import { useApi, useDebounced, toast } from '../lib/hooks';
-import { Field, StockBadge, Thumb } from '../components/ui';
+import { Field, StockBadge, Thumb, DateInput } from '../components/ui';
 import { Scanner } from '../components/Scanner';
 import { SupplierForm } from './Suppliers';
 import { money, qty, todayIso, modeLabel, dateTime } from '../lib/util';
@@ -82,7 +82,7 @@ export function StockInPage() {
           </div>
         </Field>
         <Field label="Supplier bill no."><input className="input" value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} /></Field>
-        <Field label="Bill date"><input className="input" type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} /></Field>
+        <Field label="Bill date"><DateInput value={invoiceDate} max={todayIso()} onChange={setInvoiceDate} aria-label="Bill date" /></Field>
       </section>
 
       <section className="card">

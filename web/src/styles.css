@@ -428,3 +428,9 @@ textarea.input.remarks { resize: vertical; min-height: 44px; font: inherit; }
 .danger-text { color: var(--bad); }
 .check-row { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 .check-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--brand); }
+
+/* Date boxes: whole box opens the calendar; unfinished/out-of-range edits are flagged until fixed */
+.date-input { cursor: pointer; min-width: 9.5em; font-variant-numeric: tabular-nums; }
+.date-input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .75; padding: 2px; }
+.date-input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+.date-input.invalid { border-color: var(--bad); box-shadow: 0 0 0 3px var(--bad-soft); }
