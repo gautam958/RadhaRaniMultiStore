@@ -54,7 +54,7 @@ export function SalesPage() {
     <div className="page">
       <div className="row between wrap">
         <h1>Bills</h1>
-        <DateInput className="input sm" value={date} max={todayIso()} onChange={setDate} aria-label="Bill date" />
+        <DateInput stepper className="input sm" value={date} max={todayIso()} onChange={setDate} aria-label="Bill date" />
       </div>
       <div className="stats">
         {status === 'Voided' ? <>

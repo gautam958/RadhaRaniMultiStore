@@ -58,8 +58,8 @@ export function DayBookPage() {
     <div className="page">
       <div className="row between wrap">
         <h1>Day Book</h1>
-        <div className="row gap">
-          <DateInput className="input sm" value={date} max={todayIso()} onChange={setDate} aria-label="Day" />
+        <div className="row gap wrap date-head">
+          <DateInput stepper className="input sm" value={date} max={todayIso()} onChange={setDate} aria-label="Day" />
           <button className="btn primary" onClick={() => setExpense(true)}>+ Expense</button>
         </div>
       </div>
