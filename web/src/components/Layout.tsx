@@ -9,6 +9,7 @@ export const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: '◧', min: 'Manager', mobile: true },
   { to: '/pos', label: 'Billing', icon: '₹', min: 'Cashier', mobile: true },
   { to: '/products', label: 'Items', icon: '▤', min: 'Cashier', mobile: true },
+  { to: '/categories', label: 'Categories', icon: '🏷', min: 'Manager' },
   { to: '/stock-in', label: 'Stock In', icon: '⇣', min: 'Manager', mobile: true },
   { to: '/sales', label: 'Bills', icon: '🧾', min: 'Cashier' },
   { to: '/customers', label: 'Customers', icon: '👥', min: 'Cashier', mobile: true },

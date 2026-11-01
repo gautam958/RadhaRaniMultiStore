@@ -23,17 +23,57 @@ public class CatalogFunctions(AppDbContext db, StockService stock, CurrentUser m
 
     // ---------- Categories ----------
 
+    /// <summary>GET /api/categories (plain list for pickers) · ?stats=true adds item counts and stock value per category.</summary>
     [Function("Categories_List")]
-    public async Task<IActionResult> Categories([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "categories")] HttpRequest req) =>
-        Json(await db.Categories.OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToListAsync());
+    public async Task<IActionResult> Categories([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "categories")] HttpRequest req)
+    {
+        var cats = await db.Categories.AsNoTracking().OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToListAsync();
+        if (!req.QBool("stats")) return Json(cats);
+
+        me.Require(Role.Manager);
+        var isOwner = me.Is(Role.Owner);
+        // Grouped in memory: a shop has hundreds/thousands of items, and this keeps SQLite and SQL Server identical.
+        var items = await db.Products.AsNoTracking()
+            .Select(p => new { p.CategoryId, p.IsActive, p.QtyOnHand, p.ReorderLevel, p.CostPrice, p.SellingPrice, p.DiscountPercent })
+            .ToListAsync();
+        var since = DateTime.UtcNow.AddDays(-30);
+        var sold = await db.SaleItems.AsNoTracking()
+            .Where(i => db.Sales.Any(s => s.Id == i.SaleId && s.CreatedAt >= since && s.Status == SaleStatus.Completed))
+            .Select(i => new { i.ProductId, i.LineTotal, i.Qty, i.CostPrice }).ToListAsync();
+        var catOf = await db.Products.IgnoreQueryFilters().AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.CategoryId);
+
+        object Stats(int? id)
+        {
+            var mine = items.Where(p => p.CategoryId == id).ToList();
+            var live = mine.Where(p => p.IsActive).ToList();
+            var sales = sold.Where(i => catOf.GetValueOrDefault(i.ProductId) == id).ToList();
+            return new
+            {
+                itemCount = mine.Count,
+                activeCount = live.Count,
+                outOfStock = live.Count(p => p.QtyOnHand <= 0),
+                low = live.Count(p => p.QtyOnHand > 0 && p.QtyOnHand <= p.ReorderLevel),
+                stockAtPrice = live.Where(p => p.QtyOnHand > 0).Sum(p => p.QtyOnHand * Math.Round(p.SellingPrice * (1 - p.DiscountPercent / 100m), 2)),
+                stockAtCost = isOwner ? live.Where(p => p.QtyOnHand > 0).Sum(p => p.QtyOnHand * p.CostPrice) : (decimal?)null,
+                sales30d = sales.Sum(i => i.LineTotal),
+                profit30d = isOwner ? sales.Sum(i => i.LineTotal - i.CostPrice * i.Qty) : (decimal?)null
+            };
+        }
+
+        return Json(new
+        {
+            categories = cats.Select(c => new { c.Id, c.Name, c.SortOrder, c.IsActive, stats = Stats(c.Id) }),
+            uncategorised = Stats(null)
+        });
+    }
 
     [Function("Categories_Create")]
     public async Task<IActionResult> CreateCategory([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "categories")] HttpRequest req)
     {
         me.Require(Role.Manager);
         var b = await req.ReadBody<CategoryUpsert>();
-        if (string.IsNullOrWhiteSpace(b.Name)) throw AppException.BadRequest("Name is required");
-        var c = new Category { Name = b.Name.Trim(), SortOrder = b.SortOrder, IsActive = b.IsActive };
+        var name = await UniqueCategoryName(b.Name, null);
+        var c = new Category { Name = name, SortOrder = b.SortOrder, IsActive = b.IsActive };
         db.Categories.Add(c);
         await db.SaveChangesAsync();
         return Json(c, 201);
@@ -46,9 +86,39 @@ public class CatalogFunctions(AppDbContext db, StockService stock, CurrentUser m
         me.Require(Role.Manager);
         var b = await req.ReadBody<CategoryUpsert>();
         var c = await db.Categories.FindAsync(id) ?? throw AppException.NotFound("Category");
-        c.Name = b.Name.Trim(); c.SortOrder = b.SortOrder; c.IsActive = b.IsActive;
+        c.Name = await UniqueCategoryName(b.Name, id); c.SortOrder = b.SortOrder; c.IsActive = b.IsActive;
         await db.SaveChangesAsync();
         return Json(c);
+    }
+
+    /// <summary>Deletes a category; its items (including removed ones) move to "No category" — nothing else changes.</summary>
+    [Function("Categories_Delete")]
+    public async Task<IActionResult> DeleteCategory(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "categories/{id:int}/delete")] HttpRequest req, int id)
+    {
+        me.Require(Role.Manager);
+        var c = await db.Categories.FindAsync(id) ?? throw AppException.NotFound("Category");
+        var moved = 0;
+        await db.InTransaction(async () =>
+        {
+            var items = await db.Products.IgnoreQueryFilters().Where(p => p.CategoryId == id).ToListAsync();
+            foreach (var p in items) { p.CategoryId = null; p.UpdatedAt = DateTime.UtcNow; }
+            moved = items.Count;
+            db.Categories.Remove(c);
+            await db.SaveChangesAsync();
+        });
+        return Json(new { deleted = id, movedItems = moved });
+    }
+
+    private async Task<string> UniqueCategoryName(string? raw, int? exceptId)
+    {
+        var name = string.Join(' ', (raw ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        if (name.Length == 0) throw AppException.BadRequest("Name is required");
+        if (name.Length > 60) throw AppException.BadRequest("Keep the name under 60 characters");
+        var lower = name.ToLower();
+        if (await db.Categories.AnyAsync(c => c.Id != exceptId && c.Name.ToLower() == lower))
+            throw AppException.Conflict($"A category called \"{name}\" already exists");
+        return name;
     }
 
     // ---------- Products ----------
@@ -77,6 +147,7 @@ public class CatalogFunctions(AppDbContext db, StockService stock, CurrentUser m
         }
         var cat = req.QInt("categoryId", 0);
         if (cat > 0) q = q.Where(p => p.CategoryId == cat);
+        else if (cat == -1) q = q.Where(p => p.CategoryId == null);   // "No category"
         if (!removed && req.Q("active") is not "all") q = q.Where(p => p.IsActive);
 
         q = req.Q("status") switch

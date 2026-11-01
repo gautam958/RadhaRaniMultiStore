@@ -19,7 +19,14 @@ export function ProductsPage() {
   const [params, setParams] = useSearchParams();
   const status = params.get('status') ?? '';
   const [search, setSearch] = useState('');
-  const [categoryId, setCategoryId] = useState(0);
+  const [categoryId, setCategoryIdState] = useState(() => Number(params.get('categoryId')) || 0);
+  // Keep ?categoryId= in the URL so "View items" from Categories (and the back button) work.
+  const setCategoryId = (id: number) => {
+    setCategoryIdState(id);
+    const next = new URLSearchParams(params);
+    if (id) next.set('categoryId', String(id)); else next.delete('categoryId');
+    setParams(next, { replace: true });
+  };
   const [page, setPage] = useState(1);
   const [scan, setScan] = useState(false);
   const [edit, setEdit] = useState<Product | 'new' | null>(null);
@@ -68,11 +75,12 @@ export function ProductsPage() {
         <div className="chips">
           {[...STATUS, ...(can('Manager') ? [{ v: 'Removed', label: '🗑 Removed' }] : [])].map(s => (
             <button key={s.v} className={`chip ${status === s.v ? 'on' : ''}`}
-              onClick={() => { setParams(s.v ? { status: s.v } : {}); setPage(1); }}>{s.label}</button>
+              onClick={() => { const next = new URLSearchParams(params); if (s.v) next.set('status', s.v); else next.delete('status'); setParams(next); setPage(1); }}>{s.label}</button>
           ))}
           <select className="input sm" value={categoryId} onChange={e => { setCategoryId(Number(e.target.value)); setPage(1); }}>
             <option value={0}>All categories</option>
-            {cats?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {cats?.map(c => <option key={c.id} value={c.id}>{c.name}{c.isActive ? '' : ' (hidden)'}</option>)}
+            <option value={-1}>No category</option>
           </select>
         </div>
       </div>
@@ -223,7 +231,7 @@ function ProductForm({ product, categories, onClose, onSaved, onCategoryAdded, o
           <div className="search-row">
             <select className="input" value={f.categoryId} onChange={set('categoryId')}>
               <option value={0}>—</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {categories.filter(c => c.isActive || c.id === product?.categoryId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <button type="button" className="btn" onClick={addCategory}>+</button>
           </div>

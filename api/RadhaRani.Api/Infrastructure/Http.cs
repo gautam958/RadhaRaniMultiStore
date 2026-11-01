@@ -14,6 +14,7 @@ public class AppException(int status, string message) : Exception(message)
     public static AppException NotFound(string what) => new(404, $"{what} not found");
     public static AppException Forbidden(string msg = "You don't have permission for this action") => new(403, msg);
     public static AppException Unauthorized(string msg = "Please sign in") => new(401, msg);
+    public static AppException Conflict(string msg) => new(409, msg);
 }
 
 public static class AppJson

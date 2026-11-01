@@ -420,3 +420,11 @@ textarea.input.remarks { resize: vertical; min-height: 44px; font: inherit; }
   .report-nav { width: 100%; justify-content: space-between; }
   .trend-bars { height: 150px; }
 }
+
+/* ---------- Categories ---------- */
+.cat-row.inactive { opacity: .65; }
+.cat-row.none { border-style: dashed; background: transparent; }
+.warn-text { color: var(--warn); }
+.danger-text { color: var(--bad); }
+.check-row { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.check-row input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--brand); }

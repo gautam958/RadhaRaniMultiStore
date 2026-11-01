@@ -18,6 +18,7 @@ import { SuppliersPage } from './pages/Suppliers';
 import { UsersPage } from './pages/Users';
 import { AuditPage } from './pages/Audit';
 import { ReportsPage } from './pages/Reports';
+import { CategoriesPage } from './pages/Categories';
 import './styles.css';
 
 function Guard({ min, children }: { min: Role; children: JSX.Element }) {
@@ -43,6 +44,7 @@ function App() {
         <Route path="sales" element={<SalesPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="daybook" element={<Guard min="Manager"><DayBookPage /></Guard>} />
+        <Route path="categories" element={<Guard min="Manager"><CategoriesPage /></Guard>} />
         <Route path="reports" element={<Guard min="Owner"><ReportsPage /></Guard>} />
         <Route path="suppliers" element={<Guard min="Manager"><SuppliersPage /></Guard>} />
         <Route path="users" element={<SuperAdmin><UsersPage /></SuperAdmin>} />
